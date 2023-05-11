@@ -1,6 +1,7 @@
-import {app, BrowserWindow, screen} from 'electron';
+import { app, BrowserWindow, ipcMain, screen } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import system from './api/system';
 
 let win: BrowserWindow = null;
 const args = process.argv.slice(1),
@@ -18,10 +19,13 @@ function createWindow(): BrowserWindow {
     height: size.height,
     webPreferences: {
       nodeIntegration: true,
+      preload: path.join(__dirname, 'preload.js'),
       allowRunningInsecureContent: (serve),
-      contextIsolation: false,  // false if you want to run e2e test with Spectron
+      contextIsolation: true,  // false if you want to run e2e test with Spectron
     },
   });
+
+  system.addHandlers(ipcMain);
 
   if (serve) {
     const debug = require('electron-debug');
@@ -34,13 +38,20 @@ function createWindow(): BrowserWindow {
     let pathIndex = './index.html';
 
     if (fs.existsSync(path.join(__dirname, '../dist/index.html'))) {
-       // Path when running electron in local folder
+      // Path when running electron in local folder
       pathIndex = '../dist/index.html';
     }
 
     const url = new URL(path.join('file:', __dirname, pathIndex));
     win.loadURL(url.href);
   }
+
+  win.on('ready-to-show', function () {
+    win.maximize();
+
+    // Open the DevTools.
+    win.webContents.openDevTools();
+  });
 
   // Emitted when the window is closed.
   win.on('closed', () => {
